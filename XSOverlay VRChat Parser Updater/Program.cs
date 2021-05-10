@@ -19,15 +19,24 @@ namespace XSOverlay_VRChat_Parser_Updater
             int parserPid = int.Parse(args[2]);
             isElevated = bool.Parse(args[3]);
 
+            Log($"Updater initialized with arguments: ");
+
+            foreach (string arg in args)
+                Log($"Argument: {arg}");
+
             Log($"Waiting for XSOverlay VRChat Parser to close...");
 
             while (true)
             {
                 try
                 {
-                    Task.Delay(100).GetAwaiter().GetResult();
                     Process p = Process.GetProcessById(parserPid);
+
+                    if (p.HasExited)
+                        break;
+
                     Log("XSOverlay VRChat Parser process is still running. Waiting for exit...");
+                    p.WaitForExitAsync().GetAwaiter().GetResult();
                 }
                 catch (ArgumentException aex)
                 {
@@ -97,7 +106,7 @@ namespace XSOverlay_VRChat_Parser_Updater
 
                     Process p = Process.Start(updaterInfo);
 
-                    p.WaitForExit();
+                    p.WaitForExitAsync().GetAwaiter().GetResult();
                     Log($"Elevated process exited.");
                 }
                 catch (Exception ex)
