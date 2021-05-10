@@ -96,9 +96,9 @@ namespace XSOverlay_VRChat_Parser_Updater
 
             try
             {
-                string[] sourceDirectories = Directory.GetDirectories(sourceDir).Where(x => x.ToLowerInvariant() != sourceDir + "\\resources").ToArray();
+                string[] sourceDirectories = Directory.GetDirectories(sourceDir).Where(x => x[(x.LastIndexOf('\\') + 1)..].ToLower() != "resources").ToArray();
                 string[] sourceFiles = Directory.GetFiles(sourceDir);
-                string[] targetDirectories = Directory.GetDirectories(targetDir).Where(x => x.ToLowerInvariant() != targetDir + "\\resources").ToArray();
+                string[] targetDirectories = Directory.GetDirectories(targetDir).Where(x => x[(x.LastIndexOf('\\') + 1)..].ToLower() != "resources").ToArray();
                 string[] targetFiles = Directory.GetFiles(targetDir);
 
                 foreach (string dir in targetDirectories)
@@ -109,7 +109,7 @@ namespace XSOverlay_VRChat_Parser_Updater
                 foreach (string fn in targetFiles)
                 {
                     Log($"Removing target directory file: {fn}");
-                    Directory.Delete(fn);
+                    File.Delete(fn);
                 }
 
                 foreach (string fn in sourceFiles)
@@ -141,7 +141,8 @@ namespace XSOverlay_VRChat_Parser_Updater
                 {
                     FileName = $@"{targetDir}\XSOverlay VRChat Parser.exe",
                     UseShellExecute = true,
-                    RedirectStandardOutput = false
+                    RedirectStandardOutput = false,
+                    WorkingDirectory = targetDir
                 };
 
                 Process.Start(parserInfo);
@@ -193,7 +194,7 @@ namespace XSOverlay_VRChat_Parser_Updater
             DateTime now = DateTime.Now;
             string msg = $"[{now.Year:0000}/{now.Month:00}/{now.Day:00} {now.Hour:00}:{now.Minute:00}:{now.Second:00}] {message}\r\n";
 
-            Console.WriteLine();
+            Console.Write(msg);
             File.AppendAllText($@"update.log", msg);
         }
     }
