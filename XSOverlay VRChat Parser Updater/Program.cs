@@ -81,12 +81,15 @@ namespace XSOverlay_VRChat_Parser_Updater
                 }
                 catch (Exception ex)
                 {
-                    Log($"Failed to write to target directory: attempt ({i}) of ({retryMax}).");
+                    Log($"Failed to write to target directory: attempt ({i+1}) of ({retryMax}).");
                 } 
             }
 
             if (!writeSuccess)
+            {
+                Log("Aborting.");
                 return;
+            }
 
             // The Resources directory is a special case. We will ever only overwrite this directory, not delete it.
             Log("Cleaning up target directory...");
