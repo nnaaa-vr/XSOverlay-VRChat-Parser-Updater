@@ -62,20 +62,31 @@ namespace XSOverlay_VRChat_Parser_Updater
                 return;
             }
 
-            Log("Validating that target directory is writable...");
-            try
-            {
-                // I was going to use System.Security.AccessControl.DirectorySecurity here and check ACLs, but it's much faster and easier to just, well, try to write something
+            int retryMax = 10;
 
-                File.WriteAllBytes($@"{targetDir}\.writable", new byte[1] { 0x01 });
-                File.Delete($@"{targetDir}\.writable");
-            }
-            catch (Exception ex)
+            Log("Validating that target directory is writable...");
+            bool writeSuccess = false;
+            for (int i = 0; i < retryMax; i++)
             {
-                Log("Failed to write to target directory. Aborting.");
-                Log(ex.Message);
-                return;
+                try
+                {
+                    // I was going to use System.Security.AccessControl.DirectorySecurity here and check ACLs, but it's much faster and easier to just, well, try to write something
+
+                    File.WriteAllBytes($@"{targetDir}\.writable", new byte[1] { 0x01 });
+                    File.Delete($@"{targetDir}\.writable");
+
+                    writeSuccess = true;
+
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Log($"Failed to write to target directory: attempt ({i}) of ({retryMax}).");
+                } 
             }
+
+            if (!writeSuccess)
+                return;
 
             // The Resources directory is a special case. We will ever only overwrite this directory, not delete it.
             Log("Cleaning up target directory...");
@@ -92,8 +103,7 @@ namespace XSOverlay_VRChat_Parser_Updater
             }
 
             bool moveSuccess = false;
-            int retryMax = 10;
-
+            
             try
             {
                 string[] sourceDirectories = Directory.GetDirectories(sourceDir).Where(x => x[(x.LastIndexOf('\\') + 1)..].ToLower() != "resources").ToArray();
