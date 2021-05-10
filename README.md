@@ -1,0 +1,1 @@
+Helper binary for XSOverlay VRChat Parser. No need to download this, the parser will on its own.
