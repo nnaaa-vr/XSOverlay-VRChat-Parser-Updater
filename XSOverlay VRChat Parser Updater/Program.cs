@@ -3,15 +3,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
+using System.Threading.Tasks;
 
 namespace XSOverlay_VRChat_Parser_Updater
 {
     class Program
     {
-        private static bool hasApplicationMutex = false;
-        private static Mutex applicationMutex;
-
         static void Main(string[] args)
         {
             // Args: (sourceDir) (targetDir)
@@ -21,7 +18,7 @@ namespace XSOverlay_VRChat_Parser_Updater
             foreach (string arg in args)
                 Log($"Argument: {arg}");
 
-            if (args.Length != 2)
+            if (args.Length != 3)
             {
                 Log("Unexpected number of arguments. Aborting.");
                 return;
@@ -29,17 +26,18 @@ namespace XSOverlay_VRChat_Parser_Updater
 
             Log($"Waiting for XSOverlay VRChat Parser to close...");
 
-            try
+            while (true)
             {
-                applicationMutex = new Mutex(true, "XSOVRCParser", out hasApplicationMutex);
-                applicationMutex.WaitOne();
-            }
-            catch (Exception ex)
-            {
-                Log("Failed to obtain exclusivity. Is the parser still running?");
-                Log(ex.Message);
-                Console.ReadLine();
-                return;
+                try
+                {
+                    Process.GetProcessById(int.Parse(args[2]));
+                    break;
+                }
+                catch (ArgumentException aex)
+                {
+                    Log("XSOverlay VRChat Parser process is still running. Waiting for exit...");
+                    Task.Delay(100).GetAwaiter().GetResult();
+                }
             }
 
             string sourceDir = args[0];
@@ -49,7 +47,6 @@ namespace XSOverlay_VRChat_Parser_Updater
             if (!Directory.Exists(sourceDir))
             {
                 Log("Source directory could not be found. Aborting.");
-                ReleaseMutex();
                 return;
             }
 
@@ -57,7 +54,6 @@ namespace XSOverlay_VRChat_Parser_Updater
             if (!Directory.Exists(targetDir))
             {
                 Log("Target directory could not be found. Aborting.");
-                ReleaseMutex();
                 return;
             }
 
@@ -73,7 +69,6 @@ namespace XSOverlay_VRChat_Parser_Updater
             {
                 Log("Failed to write to target directory. Aborting.");
                 Log(ex.Message);
-                ReleaseMutex();
                 return;
             }
 
@@ -88,7 +83,6 @@ namespace XSOverlay_VRChat_Parser_Updater
             {
                 Log("Failed to copy resources directory from source directory to target directory.");
                 Log(ex.Message);
-                ReleaseMutex();
                 return;
             }
 
@@ -127,8 +121,11 @@ namespace XSOverlay_VRChat_Parser_Updater
             }
             catch (Exception ex)
             {
+                string currentAssemblyLocation = Assembly.GetExecutingAssembly().Location;
+                currentAssemblyLocation = currentAssemblyLocation.Substring(0, currentAssemblyLocation.LastIndexOf('\\'));
+
                 Log(ex.Message);
-                Log($"Failed to clean and copy source and target directories. Please send the log file generated at {Assembly.GetExecutingAssembly().Location}\\update.log to the developer!");
+                Log($"Failed to clean and copy source and target directories. Please send the log file generated at {currentAssemblyLocation}\\update.log to the developer!");
                 Log("You may need to redownload the parser from GitHub. This is a critical failure.");
                 Console.ReadLine();
             }
@@ -149,13 +146,6 @@ namespace XSOverlay_VRChat_Parser_Updater
             }
 
             Log("Exiting.");
-            ReleaseMutex();
-        }
-
-        static void ReleaseMutex()
-        {
-            if (hasApplicationMutex)
-                applicationMutex.ReleaseMutex();
         }
 
         static void CopyDirectoryAdditive(string sourceDir, string targetDir)
