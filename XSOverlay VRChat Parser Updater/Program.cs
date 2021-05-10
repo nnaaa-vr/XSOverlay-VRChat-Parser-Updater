@@ -162,7 +162,7 @@ namespace XSOverlay_VRChat_Parser_Updater
         {
             Log($"CopyDirectoryAdditive called for source directory {sourceDir} and target directory {targetDir}");
 
-            if(!Directory.Exists(targetDir))
+            if (!Directory.Exists(targetDir))
             {
                 Log($"Directory didn't exist in target: {targetDir}");
                 Directory.CreateDirectory(targetDir);
@@ -175,14 +175,14 @@ namespace XSOverlay_VRChat_Parser_Updater
             {
                 string fn = sourceFile[(sourceFile.LastIndexOf('\\') + 1)..];
 
-                if(!File.Exists(targetDir + "\\" + fn))
+                if (!File.Exists(targetDir + "\\" + fn))
                 {
                     Log($"{fn} exists in source directory but not in target directory. Copying...");
                     File.Move(sourceFile, $@"{targetDir}\{fn}");
                 }
             }
 
-            foreach(string sourceDirectory in sourceDirectories)
+            foreach (string sourceDirectory in sourceDirectories)
             {
                 string dirName = sourceDirectory[(sourceDirectory.LastIndexOf('\\') + 1)..];
                 CopyDirectoryAdditive(sourceDirectory, targetDir + '\\' + dirName);
