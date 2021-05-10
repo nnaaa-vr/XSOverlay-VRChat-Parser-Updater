@@ -30,13 +30,18 @@ namespace XSOverlay_VRChat_Parser_Updater
             {
                 try
                 {
-                    Process.GetProcessById(int.Parse(args[2]));
-                    break;
+                    Task.Delay(100).GetAwaiter().GetResult();
+                    Process p = Process.GetProcessById(int.Parse(args[2]));
+                    Log("XSOverlay VRChat Parser process is still running. Waiting for exit...");
                 }
                 catch (ArgumentException aex)
                 {
-                    Log("XSOverlay VRChat Parser process is still running. Waiting for exit...");
-                    Task.Delay(100).GetAwaiter().GetResult();
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Log(ex.Message);
+                    return;
                 }
             }
 
@@ -87,6 +92,7 @@ namespace XSOverlay_VRChat_Parser_Updater
             }
 
             bool moveSuccess = false;
+            int retryMax = 10;
 
             try
             {
@@ -97,24 +103,69 @@ namespace XSOverlay_VRChat_Parser_Updater
 
                 foreach (string dir in targetDirectories)
                 {
-                    Log($"Removing target directory directory: {dir}");
-                    Directory.Delete(dir, true);
+                    for (int i = 0; i < retryMax; i++)
+                    {
+                        try
+                        {
+
+                            Log($"Attempt ({i+1}) of ({retryMax}) to remove target directory: {dir}");
+                            Directory.Delete(dir, true);
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            Task.Delay(100).GetAwaiter().GetResult();
+                        }
+                    }
                 }
                 foreach (string fn in targetFiles)
                 {
-                    Log($"Removing target directory file: {fn}");
-                    File.Delete(fn);
+                    for (int i = 0; i < retryMax; i++)
+                    {
+                        try
+                        {
+                            Log($"Attempt ({i+1}) of ({retryMax}) to remove target file: {fn}");
+                            File.Delete(fn);
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            Task.Delay(100).GetAwaiter().GetResult();
+                        }
+                    }
                 }
 
                 foreach (string fn in sourceFiles)
                 {
-                    Log($"Moving source directory file to target directory: {fn}");
-                    File.Move(fn, $@"{targetDir}\{fn[(fn.LastIndexOf('\\') + 1)..]}");
+                    for (int i = 0; i < retryMax; i++)
+                    {
+                        try
+                        {
+                            Log($"Attempt ({i+1}) of ({retryMax}) to move file to target directory: {fn}");
+                            File.Move(fn, $@"{targetDir}\{fn[(fn.LastIndexOf('\\') + 1)..]}");
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            Task.Delay(100).GetAwaiter().GetResult();
+                        }
+                    }
                 }
                 foreach (string dir in sourceDirectories)
                 {
-                    Log($"Moving source directory to target directory: {dir}");
-                    Directory.Move(dir, $@"{targetDir}\{dir[(dir.LastIndexOf('\\') + 1)..]}");
+                    for (int i = 0; i < retryMax; i++)
+                    {
+                        try
+                        {
+                            Log($"Attempt ({i+1}) of ({retryMax}) to move directory to target directory: {dir}");
+                            Directory.Move(dir, $@"{targetDir}\{dir[(dir.LastIndexOf('\\') + 1)..]}");
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            Task.Delay(100).GetAwaiter().GetResult();
+                        }
+                    }
                 }
 
                 moveSuccess = true;
