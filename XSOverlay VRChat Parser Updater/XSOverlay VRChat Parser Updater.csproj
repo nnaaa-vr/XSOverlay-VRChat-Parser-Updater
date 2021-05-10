@@ -4,6 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
     <RootNamespace>XSOverlay_VRChat_Parser_Updater</RootNamespace>
+    <Version>0.1</Version>
   </PropertyGroup>
 
 </Project>
