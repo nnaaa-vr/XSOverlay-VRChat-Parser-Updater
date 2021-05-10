@@ -9,20 +9,15 @@ namespace XSOverlay_VRChat_Parser_Updater
 {
     class Program
     {
+        private const int RetryMax = 10;
+        private static bool isElevated = false;
+
         static void Main(string[] args)
         {
-            // Args: (sourceDir) (targetDir)
-
-            Log($"Updater initialized with {args.Length} arguments.");
-
-            foreach (string arg in args)
-                Log($"Argument: {arg}");
-
-            if (args.Length != 3)
-            {
-                Log("Unexpected number of arguments. Aborting.");
-                return;
-            }
+            string sourceDir = args[0];
+            string targetDir = args[1];
+            int parserPid = int.Parse(args[2]);
+            isElevated = bool.Parse(args[3]);
 
             Log($"Waiting for XSOverlay VRChat Parser to close...");
 
@@ -31,7 +26,7 @@ namespace XSOverlay_VRChat_Parser_Updater
                 try
                 {
                     Task.Delay(100).GetAwaiter().GetResult();
-                    Process p = Process.GetProcessById(int.Parse(args[2]));
+                    Process p = Process.GetProcessById(parserPid);
                     Log("XSOverlay VRChat Parser process is still running. Waiting for exit...");
                 }
                 catch (ArgumentException aex)
@@ -44,9 +39,6 @@ namespace XSOverlay_VRChat_Parser_Updater
                     return;
                 }
             }
-
-            string sourceDir = args[0];
-            string targetDir = args[1];
 
             Log("Checking source directory exists...");
             if (!Directory.Exists(sourceDir))
@@ -62,11 +54,9 @@ namespace XSOverlay_VRChat_Parser_Updater
                 return;
             }
 
-            int retryMax = 10;
-
             Log("Validating that target directory is writable...");
             bool writeSuccess = false;
-            for (int i = 0; i < retryMax; i++)
+            for (int i = 0; i < RetryMax; i++)
             {
                 try
                 {
@@ -81,16 +71,63 @@ namespace XSOverlay_VRChat_Parser_Updater
                 }
                 catch (Exception ex)
                 {
-                    Log($"Failed to write to target directory: attempt ({i+1}) of ({retryMax}).");
-                } 
+                    Task.Delay(100).GetAwaiter().GetResult();
+                }
             }
 
             if (!writeSuccess)
             {
-                Log("Aborting.");
-                return;
+                Log($"Can't write to target directory. Attempting to relaunch as elevated user.");
+
+                try
+                {
+                    string currentLocation = Assembly.GetExecutingAssembly().Location;
+                    currentLocation = currentLocation[0..(currentLocation.LastIndexOf('\\'))];
+
+                    ProcessStartInfo updaterInfo = new ProcessStartInfo()
+                    {
+                        FileName = currentLocation + "\\XSOverlay VRChat Parser Updater.exe",
+                        UseShellExecute = true,
+                        RedirectStandardOutput = false,
+                        Arguments = $"\"{args[0]}\" \"{args[1]}\" {args[2]} true",
+                        WorkingDirectory = currentLocation
+                    };
+
+                    updaterInfo.Verb = "runas";
+
+                    Process p = Process.Start(updaterInfo);
+
+                    p.WaitForExit();
+                    Log($"Elevated process exited.");
+                }
+                catch (Exception ex)
+                {
+                    Log("Failed to restart process as elevated user.");
+                    Log(ex.Message);
+                    return;
+                }
+            }
+            else
+            {
+                RunUpdate(sourceDir, targetDir);
             }
 
+            if (!isElevated)
+            {
+                ProcessStartInfo parserInfo = new ProcessStartInfo()
+                {
+                    FileName = $@"{targetDir}\XSOverlay VRChat Parser.exe",
+                    UseShellExecute = true,
+                    RedirectStandardOutput = false,
+                    WorkingDirectory = targetDir
+                };
+
+                Process.Start(parserInfo);
+            }
+        }
+
+        static void RunUpdate(string sourceDir, string targetDir)
+        {
             // The Resources directory is a special case. We will ever only overwrite this directory, not delete it.
             Log("Cleaning up target directory...");
 
@@ -106,7 +143,7 @@ namespace XSOverlay_VRChat_Parser_Updater
             }
 
             bool moveSuccess = false;
-            
+
             try
             {
                 string[] sourceDirectories = Directory.GetDirectories(sourceDir).Where(x => x[(x.LastIndexOf('\\') + 1)..].ToLower() != "resources").ToArray();
@@ -116,12 +153,11 @@ namespace XSOverlay_VRChat_Parser_Updater
 
                 foreach (string dir in targetDirectories)
                 {
-                    for (int i = 0; i < retryMax; i++)
+                    Log($"Attempting to remove target directory: {dir}");
+                    for (int i = 0; i < RetryMax; i++)
                     {
                         try
                         {
-
-                            Log($"Attempt ({i+1}) of ({retryMax}) to remove target directory: {dir}");
                             Directory.Delete(dir, true);
                             break;
                         }
@@ -133,11 +169,11 @@ namespace XSOverlay_VRChat_Parser_Updater
                 }
                 foreach (string fn in targetFiles)
                 {
-                    for (int i = 0; i < retryMax; i++)
+                    Log($"Attempting to remove target file: {fn}");
+                    for (int i = 0; i < RetryMax; i++)
                     {
                         try
                         {
-                            Log($"Attempt ({i+1}) of ({retryMax}) to remove target file: {fn}");
                             File.Delete(fn);
                             break;
                         }
@@ -150,11 +186,11 @@ namespace XSOverlay_VRChat_Parser_Updater
 
                 foreach (string fn in sourceFiles)
                 {
-                    for (int i = 0; i < retryMax; i++)
+                    Log($"Attempting to move file to target directory: {fn}");
+                    for (int i = 0; i < RetryMax; i++)
                     {
                         try
                         {
-                            Log($"Attempt ({i+1}) of ({retryMax}) to move file to target directory: {fn}");
                             File.Move(fn, $@"{targetDir}\{fn[(fn.LastIndexOf('\\') + 1)..]}");
                             break;
                         }
@@ -166,11 +202,11 @@ namespace XSOverlay_VRChat_Parser_Updater
                 }
                 foreach (string dir in sourceDirectories)
                 {
-                    for (int i = 0; i < retryMax; i++)
+                    Log($"Attempting to move directory to target directory: {dir}");
+                    for (int i = 0; i < RetryMax; i++)
                     {
                         try
                         {
-                            Log($"Attempt ({i+1}) of ({retryMax}) to move directory to target directory: {dir}");
                             Directory.Move(dir, $@"{targetDir}\{dir[(dir.LastIndexOf('\\') + 1)..]}");
                             break;
                         }
@@ -195,19 +231,7 @@ namespace XSOverlay_VRChat_Parser_Updater
             }
 
             if (moveSuccess)
-            {
                 Log($"Successfully updated binaries and resources in target directory. Starting...");
-
-                ProcessStartInfo parserInfo = new ProcessStartInfo()
-                {
-                    FileName = $@"{targetDir}\XSOverlay VRChat Parser.exe",
-                    UseShellExecute = true,
-                    RedirectStandardOutput = false,
-                    WorkingDirectory = targetDir
-                };
-
-                Process.Start(parserInfo);
-            }
 
             Log("Exiting.");
         }
@@ -246,7 +270,7 @@ namespace XSOverlay_VRChat_Parser_Updater
         static void Log(string message)
         {
             DateTime now = DateTime.Now;
-            string msg = $"[{now.Year:0000}/{now.Month:00}/{now.Day:00} {now.Hour:00}:{now.Minute:00}:{now.Second:00}] {message}\r\n";
+            string msg = $"[{now.Year:0000}/{now.Month:00}/{now.Day:00} {now.Hour:00}:{now.Minute:00}:{now.Second:00}]{(isElevated ? " (Elevated)": "")} {message}\r\n";
 
             Console.Write(msg);
             File.AppendAllText($@"update.log", msg);
